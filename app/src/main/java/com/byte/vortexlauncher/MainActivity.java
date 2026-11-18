@@ -72,16 +72,19 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setView(box).setCancelable(true).show();
   }
   class GestureFrame extends FrameLayout {
-    float downY; boolean swiping;
+    float downY; boolean tracking, swipeConsumed;
     GestureFrame(Context c){super(c);setClickable(true);}
-    @Override public boolean onInterceptTouchEvent(android.view.MotionEvent e){
-      if(e.getAction()==MotionEvent.ACTION_DOWN){downY=e.getY();swiping=false;}
-      if(e.getAction()==MotionEvent.ACTION_MOVE && e.getY()<downY-dp(42)){swiping=true;return true;}
-      return super.onInterceptTouchEvent(e);
-    }
-    @Override public boolean onTouchEvent(android.view.MotionEvent e){
-      if(e.getAction()==MotionEvent.ACTION_UP && swiping){showDrawer();swiping=false;return true;}
-      return true;
+    @Override public boolean dispatchTouchEvent(MotionEvent e){
+      int action=e.getActionMasked();
+      if(action==MotionEvent.ACTION_DOWN){downY=e.getY();tracking=true;swipeConsumed=false;return super.dispatchTouchEvent(e);}
+      if(swipeConsumed){if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL){swipeConsumed=false;tracking=false;}return true;}
+      if(tracking&&action==MotionEvent.ACTION_MOVE&&downY-e.getY()>dp(24)){
+        tracking=false;swipeConsumed=true;
+        MotionEvent cancel=MotionEvent.obtain(e);cancel.setAction(MotionEvent.ACTION_CANCEL);super.dispatchTouchEvent(cancel);cancel.recycle();
+        showDrawer();return true;
+      }
+      if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)tracking=false;
+      return super.dispatchTouchEvent(e);
     }
   }
   class AnimatedSky extends View{Paint p=new Paint(3);Random random=new Random(81);Bitmap wallpaperBitmap;float[] x=new float[50],y=new float[50],speed=new float[50],size=new float[50];long start=System.currentTimeMillis();AnimatedSky(Context c){super(c);wallpaperBitmap=BitmapFactory.decodeResource(getResources(),R.drawable.vortex_wallpaper);setLayerType(View.LAYER_TYPE_SOFTWARE,null);for(int i=0;i<x.length;i++){x[i]=random.nextFloat();y[i]=random.nextFloat();speed[i]=.00007f+random.nextFloat()*.0002f;size[i]=1+random.nextFloat()*3;}}protected void onDraw(Canvas c){super.onDraw(c);int top=wallpaper==1?Color.rgb(13,13,30):wallpaper==2?Color.rgb(8,27,23):bg1;int bot=wallpaper==1?Color.rgb(36,15,40):wallpaper==2?Color.rgb(12,35,27):bg2;
