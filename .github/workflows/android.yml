@@ -22,8 +22,8 @@ jobs:
       - name: Publish new APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: from-scratch-gold-v2
-          name: Byte Vortex Emuladores — dourado v2
+          tag_name: from-scratch-gold-v3
+          name: Byte Vortex Emuladores — dourado v3
           make_latest: true
-          body: 'Launcher Android 6.0+ com tela inicial dourada animada, gaveta por gesto, busca, dock e configurações persistentes de tema.'
+          body: 'Versão 3. Corrige gesto de puxar para cima em qualquer ponto da tela; mantém a imagem enviada como papel de parede. Android 6.0+.'
           files: app/build/outputs/apk/debug/app-debug.apk
