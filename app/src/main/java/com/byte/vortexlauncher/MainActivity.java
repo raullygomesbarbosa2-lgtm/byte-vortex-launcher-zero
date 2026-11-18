@@ -1,93 +1,79 @@
 package com.bytevortex.launcher;
 
-import android.app.Activity;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.widget.BaseAdapter;
-import android.widget.EditText;
-import android.widget.GridView;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.app.*;
+import android.content.*;
+import android.content.pm.*;
+import android.graphics.*;
+import android.graphics.drawable.*;
+import android.os.*;
+import android.text.*;
+import android.view.*;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.*;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class MainActivity extends Activity {
-    private final int bg = Color.rgb(8, 11, 9), neon = Color.rgb(57, 255, 20), text = Color.WHITE, muted = Color.rgb(153, 165, 156);
-    private PackageManager pm;
-    private final ArrayList<ResolveInfo> all = new ArrayList<>(), shown = new ArrayList<>();
-    private GridView grid;
-    private AppsAdapter adapter;
-    private TextView clock, date;
-    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, d MMMM", new Locale("pt", "BR"));
+  int gold=Color.rgb(255,190,62), bg1=Color.rgb(13,11,16), bg2=Color.rgb(31,19,20), ink=Color.WHITE, dim=Color.rgb(175,164,151);
+  int palette=0, wallpaper=0, iconDp=51, columns=4; boolean glow=true;
+  FrameLayout frame; LinearLayout base; GridView drawerGrid; EditText search; TextView clock,date; AnimatedSky sky; ArrayList<ResolveInfo> apps=new ArrayList<>(), filtered=new ArrayList<>(); AppsAdapter adapter;
+  final int[] colors={Color.rgb(255,190,62),Color.rgb(67,220,255),Color.rgb(175,111,255),Color.rgb(255,92,140),Color.rgb(83,235,145)};
+  @Override public void onCreate(Bundle b){super.onCreate(b); getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.rgb(8,7,10));getWindow().setFlags(1024,1024); loadPrefs(); loadApps(); home();}
+  int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);} GradientDrawable shape(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+  GradientDrawable stroke(int c,int r,int sc){GradientDrawable d=shape(c,r);d.setStroke(dp(1),sc);return d;}
+  TextView label(String s,int sz,int col,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(sz);t.setTextColor(col);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
 
-    @Override public void onCreate(Bundle b) {
-        super.onCreate(b);
-        getWindow().setStatusBarColor(bg); getWindow().setNavigationBarColor(bg);
-        getWindow().getDecorView().setSystemUiVisibility(0);
-        pm = getPackageManager();
-        buildScreen(); loadApps(); updateTime();
-    }
-
-    private void buildScreen() {
-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22), dp(26), dp(22), dp(12)); root.setBackgroundColor(bg);
-        LinearLayout brand = new LinearLayout(this); brand.setGravity(Gravity.CENTER_VERTICAL); brand.setOrientation(LinearLayout.HORIZONTAL);
-        TextView mark = new TextView(this); mark.setText("BV"); mark.setTextColor(bg); mark.setTextSize(18); mark.setTypeface(Typeface.DEFAULT, Typeface.BOLD); mark.setGravity(Gravity.CENTER);
-        GradientDrawable badge = new GradientDrawable(); badge.setColor(neon); badge.setCornerRadius(dp(14)); mark.setBackground(badge); brand.addView(mark, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        LinearLayout names = new LinearLayout(this); names.setOrientation(LinearLayout.VERTICAL); names.setPadding(dp(12),0,0,0);
-        TextView title = new TextView(this); title.setText("BYTE VORTEX"); title.setTextColor(text); title.setTextSize(19); title.setTypeface(Typeface.DEFAULT, Typeface.BOLD); names.addView(title);
-        TextView sub = new TextView(this); sub.setText("LAUNCHER  •  GAMING MODE"); sub.setTextColor(neon); sub.setTextSize(10); sub.setLetterSpacing(.12f); names.addView(sub);
-        brand.addView(names, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView settings = new TextView(this); settings.setText("⚙"); settings.setTextColor(neon); settings.setTextSize(24); settings.setGravity(Gravity.CENTER); settings.setOnClickListener(v -> { try { startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); } catch(Exception ignored){} }); brand.addView(settings, new LinearLayout.LayoutParams(dp(44), dp(48)));
-        root.addView(brand);
-        clock = new TextView(this); clock.setTextColor(text); clock.setTextSize(48); clock.setTypeface(Typeface.DEFAULT, Typeface.BOLD); clock.setPadding(0, dp(34),0,0); root.addView(clock);
-        date = new TextView(this); date.setTextColor(muted); date.setTextSize(14); date.setPadding(0,0,0,dp(20)); root.addView(date);
-        EditText search = new EditText(this); search.setSingleLine(true); search.setTextColor(text); search.setHintTextColor(muted); search.setHint("⌕   Buscar aplicativos"); search.setTextSize(15); search.setPadding(dp(16),0,dp(16),0); search.setBackground(round(Color.rgb(22,28,23), dp(18))); root.addView(search, new LinearLayout.LayoutParams(-1, dp(52)));
-        TextView section = new TextView(this); section.setText("SEUS APLICATIVOS"); section.setTextColor(muted); section.setTextSize(11); section.setLetterSpacing(.14f); section.setPadding(dp(4), dp(22), 0, dp(10)); root.addView(section);
-        grid = new GridView(this); grid.setNumColumns(4); grid.setVerticalSpacing(dp(8)); grid.setHorizontalSpacing(dp(4)); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setSelector(android.R.color.transparent); grid.setPadding(0,dp(4),0,0); root.addView(grid, new LinearLayout.LayoutParams(-1,0,1));
-        adapter = new AppsAdapter(); grid.setAdapter(adapter);
-        TextView footer = new TextView(this); footer.setText("BYTE VORTEX  •  SEU CELULAR, SEU UNIVERSO"); footer.setGravity(Gravity.CENTER); footer.setTextColor(Color.rgb(83,98,86)); footer.setTextSize(9); footer.setLetterSpacing(.08f); footer.setPadding(0,dp(8),0,dp(4)); root.addView(footer);
-        search.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s,int st,int c,int a){} public void onTextChanged(CharSequence s,int st,int before,int count){ filter(s.toString()); } public void afterTextChanged(Editable e){} });
-        setContentView(root);
-    }
-
-    private void loadApps() {
-        all.clear(); Intent intent = new Intent(Intent.ACTION_MAIN, null); intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> apps = pm.queryIntentActivities(intent, 0);
-        for (ResolveInfo r: apps) if (!r.activityInfo.packageName.equals(getPackageName())) all.add(r);
-        Collections.sort(all, (a,b) -> a.loadLabel(pm).toString().compareToIgnoreCase(b.loadLabel(pm).toString()));
-        shown.clear(); shown.addAll(all); if (adapter != null) adapter.notifyDataSetChanged();
-    }
-    private void filter(String q) { shown.clear(); for (ResolveInfo r: all) if (r.loadLabel(pm).toString().toLowerCase(new Locale("pt","BR")).contains(q.toLowerCase(new Locale("pt","BR")))) shown.add(r); adapter.notifyDataSetChanged(); }
-    private void updateTime() { clock.setText(timeFormat.format(new Date())); date.setText(dateFormat.format(new Date()).toUpperCase(new Locale("pt","BR"))); clock.postDelayed(new Runnable(){public void run(){updateTime();}}, 30000); }
-    private GradientDrawable round(int color,int radius) { GradientDrawable d=new GradientDrawable(); d.setColor(color); d.setCornerRadius(radius); return d; }
-    private int dp(float v) { return (int)(v*getResources().getDisplayMetrics().density+.5f); }
-
-    private class AppsAdapter extends BaseAdapter {
-        public int getCount(){return shown.size();} public Object getItem(int p){return shown.get(p);} public long getItemId(int p){return p;}
-        public View getView(int p, View recycled, ViewGroup parent) {
-            LinearLayout cell = new LinearLayout(MainActivity.this); cell.setOrientation(LinearLayout.VERTICAL); cell.setGravity(Gravity.CENTER); cell.setPadding(dp(3),dp(8),dp(3),dp(8));
-            ImageView icon = new ImageView(MainActivity.this); try { icon.setImageDrawable(shown.get(p).loadIcon(pm)); } catch(Exception ignored){}; cell.addView(icon,new LinearLayout.LayoutParams(dp(48),dp(48)));
-            TextView label = new TextView(MainActivity.this); label.setText(shown.get(p).loadLabel(pm)); label.setTextColor(text); label.setTextSize(11); label.setGravity(Gravity.CENTER); label.setMaxLines(2); label.setPadding(0,dp(6),0,0); cell.addView(label,new LinearLayout.LayoutParams(-1,dp(38)));
-            ResolveInfo app=shown.get(p); cell.setOnClickListener(v->{Intent launch=pm.getLaunchIntentForPackage(app.activityInfo.packageName); if(launch!=null) try {startActivity(launch);}catch(Exception ignored){} });
-            return cell;
-        }
-    }
-    @Override protected void onResume(){ super.onResume(); if(pm!=null) loadApps(); }
+  void loadPrefs(){android.content.SharedPreferences p=getSharedPreferences("bv_theme",MODE_PRIVATE);palette=p.getInt("palette",0);wallpaper=p.getInt("wallpaper",0);iconDp=p.getInt("icon",51);columns=p.getInt("columns",4);glow=p.getBoolean("glow",true);gold=colors[Math.max(0,Math.min(colors.length-1,palette))];}
+  void savePrefs(){getSharedPreferences("bv_theme",MODE_PRIVATE).edit().putInt("palette",palette).putInt("wallpaper",wallpaper).putInt("icon",iconDp).putInt("columns",columns).putBoolean("glow",glow).apply();}
+  void home(){
+    frame=new FrameLayout(this); sky=new AnimatedSky(this);frame.addView(sky,new FrameLayout.LayoutParams(-1,-1));
+    base=new LinearLayout(this);base.setOrientation(LinearLayout.VERTICAL);base.setPadding(dp(24),dp(32),dp(24),dp(20));
+    LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
+    TextView badge=label("BV",17,Color.rgb(24,15,11),true);badge.setGravity(Gravity.CENTER);badge.setBackground(shape(gold,16));header.addView(badge,new LinearLayout.LayoutParams(dp(49),dp(49)));
+    LinearLayout brand=new LinearLayout(this);brand.setOrientation(LinearLayout.VERTICAL);brand.setPadding(dp(13),0,0,0);
+    TextView title=label("BYTE VORTEX",18,ink,true);title.setLetterSpacing(.17f);brand.addView(title);
+    TextView subtitle=label("EMULADORES  •  GAME HUB",10,gold,true);subtitle.setLetterSpacing(.16f);brand.addView(subtitle);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+    TextView gear=label("⚙",26,gold,false);gear.setGravity(Gravity.CENTER);gear.setBackground(stroke(Color.argb(35,255,255,255),18,Color.argb(45,255,255,255)));gear.setOnClickListener(v->settings());header.addView(gear,new LinearLayout.LayoutParams(dp(48),dp(48)));base.addView(header);
+    View spacer=new View(this);base.addView(spacer,new LinearLayout.LayoutParams(1,0,1));
+    LinearLayout timeBox=new LinearLayout(this);timeBox.setOrientation(LinearLayout.VERTICAL);timeBox.setGravity(Gravity.CENTER);clock=label("00:00",68,ink,true);clock.setShadowLayer(dp(22),0,0,gold);clock.setGravity(Gravity.CENTER);timeBox.addView(clock);
+    date=label("",14,dim,false);date.setGravity(Gravity.CENTER);date.setPadding(0,dp(3),0,0);timeBox.addView(date);base.addView(timeBox,new LinearLayout.LayoutParams(-1,-2));updateClock();
+    LinearLayout slogan=new LinearLayout(this);slogan.setGravity(Gravity.CENTER);slogan.setPadding(0,dp(20),0,dp(17));TextView s=label("SEU UNIVERSO DE JOGOS",11,gold,true);s.setLetterSpacing(.2f);slogan.addView(s);base.addView(slogan);
+    LinearLayout dock=new LinearLayout(this);dock.setGravity(Gravity.CENTER);dock.setPadding(dp(9),dp(10),dp(9),dp(10));dock.setBackground(stroke(Color.argb(105,22,19,22),28,Color.argb(95,255,190,62)));
+    ArrayList<ResolveInfo> quick=quickApps();int count=Math.min(quick.size(),4);for(int i=0;i<count;i++)dock.addView(dockItem(quick.get(i)),new LinearLayout.LayoutParams(0,dp(66),1));base.addView(dock);
+    TextView up=label("⌃",27,gold,true);up.setGravity(Gravity.CENTER);up.setPadding(0,dp(9),0,0);base.addView(up,new LinearLayout.LayoutParams(-1,dp(35)));
+    TextView pull=label("PUXE PARA CIMA",9,dim,true);pull.setLetterSpacing(.25f);pull.setGravity(Gravity.CENTER);base.addView(pull,new LinearLayout.LayoutParams(-1,dp(18)));
+    base.setOnTouchListener(new View.OnTouchListener(){float y;public boolean onTouch(View v,android.view.MotionEvent e){if(e.getAction()==0){y=e.getY();return false;} if(e.getAction()==1 && y-e.getY()>dp(55)){showDrawer();return true;}return false;}});
+    frame.addView(base,new FrameLayout.LayoutParams(-1,-1));setContentView(frame);sky.start();
+  }
+  View dockItem(ResolveInfo r){LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setGravity(Gravity.CENTER);ImageView im=new ImageView(this);try{im.setImageDrawable(r.loadIcon(getPackageManager()));}catch(Exception e){}box.addView(im,new LinearLayout.LayoutParams(dp(37),dp(37)));TextView tx=label(r.loadLabel(getPackageManager()).toString(),9,ink,false);tx.setGravity(Gravity.CENTER);tx.setMaxLines(1);box.addView(tx);box.setOnClickListener(v->launch(r));return box;}
+  ArrayList<ResolveInfo> quickApps(){ArrayList<ResolveInfo> q=new ArrayList<>();String[] keys={"game","play","emulat","retro","arcade","store","vortex"};for(String k:keys)for(ResolveInfo r:apps){if(r.loadLabel(getPackageManager()).toString().toLowerCase().contains(k)&&!q.contains(r)){q.add(r);break;}}for(ResolveInfo r:apps)if(q.size()<4&&!q.contains(r))q.add(r);return q;}
+  void loadApps(){apps.clear();Intent in=new Intent(Intent.ACTION_MAIN);in.addCategory(Intent.CATEGORY_LAUNCHER);for(ResolveInfo r:getPackageManager().queryIntentActivities(in,0))if(!r.activityInfo.packageName.equals(getPackageName()))apps.add(r);Collections.sort(apps,(a,b)->a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString()));}
+  void updateClock(){if(clock==null)return;clock.setText(new SimpleDateFormat("HH:mm",Locale.getDefault()).format(new Date()));date.setText(new SimpleDateFormat("EEEE  •  d 'DE' MMMM",new Locale("pt","BR")).format(new Date()).toUpperCase(new Locale("pt","BR")));clock.postDelayed(()->updateClock(),30000);}
+  void launch(ResolveInfo r){try{Intent i=getPackageManager().getLaunchIntentForPackage(r.activityInfo.packageName);if(i!=null)startActivity(i);}catch(Exception ignored){}}
+  void showDrawer(){
+    if(frame==null)return; LinearLayout panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(dp(20),dp(20),dp(20),dp(14));panel.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{Color.rgb(31,25,24),Color.rgb(10,10,14)}));
+    LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);TextView close=label("⌄",28,gold,true);close.setGravity(Gravity.CENTER);top.addView(close,new LinearLayout.LayoutParams(dp(44),dp(38)));close.setOnClickListener(v->home());TextView h=label("TODOS OS APLICATIVOS",14,ink,true);h.setLetterSpacing(.12f);top.addView(h,new LinearLayout.LayoutParams(0,-2,1));TextView config=label("⚙",23,gold,false);config.setGravity(Gravity.CENTER);top.addView(config,new LinearLayout.LayoutParams(dp(40),dp(38)));config.setOnClickListener(v->settings());panel.addView(top);
+    search=new EditText(this);search.setSingleLine(true);search.setTextColor(ink);search.setHintTextColor(dim);search.setHint("⌕   Buscar jogos e aplicativos");search.setTextSize(14);search.setPadding(dp(16),0,dp(16),0);search.setBackground(stroke(Color.argb(100,36,32,32),19,Color.argb(100,gold)));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(48));sp.setMargins(0,dp(12),0,dp(10));panel.addView(search,sp);
+    drawerGrid=new GridView(this);drawerGrid.setNumColumns(columns);drawerGrid.setVerticalSpacing(dp(8));drawerGrid.setHorizontalSpacing(dp(3));drawerGrid.setSelector(android.R.color.transparent);adapter=new AppsAdapter();drawerGrid.setAdapter(adapter);panel.addView(drawerGrid,new LinearLayout.LayoutParams(-1,0,1));
+    TextView footer=label("BYTE VORTEX EMULADORES  •  SELECIONE UM APP",9,gold,true);footer.setGravity(Gravity.CENTER);footer.setPadding(0,dp(10),0,dp(4));panel.addView(footer);
+    filtered.clear();filtered.addAll(apps);search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){filtered.clear();for(ResolveInfo r:apps)if(r.loadLabel(getPackageManager()).toString().toLowerCase(new Locale("pt","BR")).contains(s.toString().toLowerCase(new Locale("pt","BR"))))filtered.add(r);if(adapter!=null)adapter.notifyDataSetChanged();}public void afterTextChanged(Editable e){}});
+    FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-1,-1);fp.setMargins(0,dp(38),0,0);frame.addView(panel,fp);panel.setTranslationY(getResources().getDisplayMetrics().heightPixels);panel.animate().translationY(0).setDuration(260).start();
+  }
+  class AppsAdapter extends BaseAdapter{public int getCount(){return filtered.size();}public Object getItem(int p){return filtered.get(p);}public long getItemId(int p){return p;}public View getView(int p,View old,android.view.ViewGroup parent){LinearLayout c=new LinearLayout(MainActivity.this);c.setGravity(Gravity.CENTER);c.setOrientation(1);c.setPadding(dp(3),dp(8),dp(3),dp(6));ImageView im=new ImageView(MainActivity.this);try{im.setImageDrawable(filtered.get(p).loadIcon(getPackageManager()));}catch(Exception e){}c.addView(im,new LinearLayout.LayoutParams(dp(iconDp),dp(iconDp)));TextView t=label(filtered.get(p).loadLabel(getPackageManager()).toString(),11,ink,false);t.setGravity(Gravity.CENTER);t.setMaxLines(2);t.setPadding(0,dp(5),0,0);c.addView(t,new LinearLayout.LayoutParams(-1,dp(36)));ResolveInfo r=filtered.get(p);c.setOnClickListener(v->launch(r));return c;}}
+  void settings(){
+    final String[] palettes={"OURO VORTEX","AZUL CÓSMICO","ROXO NEBULOSA","ROSA PLASMA","VERDE MATRIX"};
+    LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setPadding(dp(22),dp(14),dp(22),dp(18));box.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{Color.rgb(35,27,24),Color.rgb(12,11,15)}));
+    TextView grip=label("━━━━━━━━━━",13,dim,true);grip.setGravity(Gravity.CENTER);box.addView(grip);TextView title=label("PERSONALIZAR BYTE VORTEX",18,ink,true);title.setPadding(0,dp(13),0,dp(3));box.addView(title);TextView desc=label("Monte a sua tela inicial do seu jeito.",12,dim,false);box.addView(desc);
+    TextView ptitle=label("COR DO TEMA",10,gold,true);ptitle.setPadding(0,dp(18),0,dp(8));box.addView(ptitle);LinearLayout row=new LinearLayout(this);for(int i=0;i<colors.length;i++){final int n=i;TextView b=label("●",23,colors[i],true);b.setGravity(Gravity.CENTER);b.setBackground(stroke(Color.argb(45,255,255,255),16,Color.argb(45,255,255,255)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(45),1);lp.setMargins(dp(3),0,dp(3),0);row.addView(b,lp);b.setOnClickListener(v->{palette=n;gold=colors[n];savePrefs();home();settings();});}box.addView(row);
+    TextView wall=label("ESTILO DO FUNDO",10,gold,true);wall.setPadding(0,dp(16),0,dp(6));box.addView(wall);LinearLayout walls=new LinearLayout(this);String[] w={"ABISMO","NEBULOSA","AURORA"};for(int i=0;i<w.length;i++){final int n=i;TextView b=label(w[i],10,ink,true);b.setGravity(Gravity.CENTER);b.setBackground(stroke(Color.argb(70,43,38,43),14,Color.argb(70,gold)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(42),1);lp.setMargins(dp(3),0,dp(3),0);walls.addView(b,lp);b.setOnClickListener(v->{wallpaper=n;savePrefs();if(sky!=null)sky.invalidate();});}box.addView(walls);
+    TextView anim=label("EFEITOS DE BRILHO   "+(glow?"ATIVADOS":"DESATIVADOS"),12,ink,true);anim.setPadding(dp(13),dp(13),dp(13),dp(13));anim.setBackground(stroke(Color.argb(60,255,255,255),13,Color.argb(50,gold)));LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(47));ap.setMargins(0,dp(13),0,dp(5));box.addView(anim,ap);anim.setOnClickListener(v->{glow=!glow;savePrefs();anim.setText("EFEITOS DE BRILHO   "+(glow?"ATIVADOS":"DESATIVADOS"));if(sky!=null)sky.invalidate();});
+    TextView size=label("TAMANHO DOS ÍCONES",10,gold,true);size.setPadding(0,dp(9),0,0);box.addView(size);SeekBar seek=new SeekBar(this);seek.setMax(28);seek.setProgress(iconDp-40);seek.setProgressTintList(android.content.res.ColorStateList.valueOf(gold));seek.setThumbTintList(android.content.res.ColorStateList.valueOf(gold));box.addView(seek);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int p,boolean u){iconDp=40+p;savePrefs();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
+    TextView cols=label("COLUNAS DA GAVETA:  "+columns+"   (TOQUE PARA ALTERNAR)",11,ink,true);cols.setPadding(0,dp(9),0,dp(9));box.addView(cols);cols.setOnClickListener(v->{columns=columns==4?5:columns==5?3:4;savePrefs();cols.setText("COLUNAS DA GAVETA:  "+columns+"   (TOQUE PARA ALTERNAR)");});
+    TextView done=label("SALVAR E VOLTAR À TELA INICIAL",11,Color.rgb(32,20,11),true);done.setGravity(Gravity.CENTER);done.setBackground(shape(gold,16));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(-1,dp(48));dp.setMargins(0,dp(9),0,0);box.addView(done,dp);done.setOnClickListener(v->home());
+    new AlertDialog.Builder(this).setView(box).setCancelable(true).show();
+  }
+  class AnimatedSky extends View{Paint p=new Paint(3);Random random=new Random(81);float[] x=new float[50],y=new float[50],speed=new float[50],size=new float[50];long start=System.currentTimeMillis();AnimatedSky(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);for(int i=0;i<x.length;i++){x[i]=random.nextFloat();y[i]=random.nextFloat();speed[i]=.00007f+random.nextFloat()*.0002f;size[i]=1+random.nextFloat()*3;}}protected void onDraw(Canvas c){super.onDraw(c);int top=wallpaper==1?Color.rgb(13,13,30):wallpaper==2?Color.rgb(8,27,23):bg1;int bot=wallpaper==1?Color.rgb(36,15,40):wallpaper==2?Color.rgb(12,35,27):bg2;c.drawColor(top);p.setShader(new LinearGradient(0,0,getWidth(),getHeight(),top,bot,Shader.TileMode.CLAMP));c.drawRect(0,0,getWidth(),getHeight(),p);p.setShader(null);long now=System.currentTimeMillis()-start;
+    if(glow){p.setColor(Color.argb(30,gold>>16&255,gold>>8&255,gold&255));p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(1));float pulse=(float)(Math.sin(now/1300.0)*.07+.62);for(int i=0;i<4;i++)c.drawCircle(getWidth()*.5f,getHeight()*.43f,dp((float)(140+i*37))*pulse,p);p.setStyle(Paint.Style.FILL);}
+    for(int i=0;i<x.length;i++){y[i]+=speed[i]*Math.max(1,getHeight())*2.3f;if(y[i]>1){y[i]=0;x[i]=random.nextFloat();}int alpha=(int)(85+80*(.5+.5*Math.sin(now/600.0+i)));p.setColor(Color.argb(glow?alpha:70,gold>>16&255,gold>>8&255,gold&255));if(glow)p.setShadowLayer(dp(8),0,0,gold);c.drawCircle(x[i]*getWidth(),y[i]*getHeight(),dp(size[i]),p);p.clearShadowLayer();}
+    if(glow){p.setColor(Color.argb(18,gold>>16&255,gold>>8&255,gold&255));p.setStrokeWidth(dp(1));c.drawLine(0,getHeight()*.79f,getWidth(),getHeight()*.79f,p);}postInvalidateDelayed(42);}}
 }
