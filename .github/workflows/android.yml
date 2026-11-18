@@ -26,5 +26,4 @@ jobs:
           name: Byte Vortex Emuladores — dourado v2
           make_latest: true
           body: 'Launcher Android 6.0+ com tela inicial dourada animada, gaveta por gesto, busca, dock e configurações persistentes de tema.'
-          body: 'Launcher feito do zero. Tela inicial dourada animada, puxar para abrir a gaveta, busca, dock e configurações de tema. Android 6.0+.'
           files: app/build/outputs/apk/debug/app-debug.apk
